@@ -1,0 +1,44 @@
+def latLonToPixel(geotifAddr, latLonPairs):
+    """ convert point in WGS-84 coordinate to pixel matrix coordinate    
+    Parameters
+    ----------
+    geotifAddr: geotif image path in the format  #dir="I:\\xxx\\xxx.tif"
+    latLonPairs: [lat,lon] in WGS-84 coordinate, with shape 2*n
+    
+    Returns
+    -------
+    pixelPairs: [x,y] in image matrix coordinate, with shape 2*n
+    """
+    
+    # Load the image dataset
+    ds = gdal.Open(geotifAddr)
+    # Get a geo-transform of the dataset
+    gt = ds.GetGeoTransform()
+    # Create a spatial reference object for the dataset
+    srs = osr.SpatialReference()
+    srs.ImportFromWkt(ds.GetProjection())
+    # Set up the coordinate transformation object
+    srsLatLong = srs.CloneGeogCS()
+    ct = osr.CoordinateTransformation(srsLatLong,srs)
+    # Go through all the point pairs and translate them to latitude/longitude pairings
+    
+    pixelPairs=np.zeros(latLonPairs.shape)
+    point=[0,0]
+    for i in range(0,latLonPairs.shape[0]):
+        # Change the point locations into the GeoTransform space
+        (point[1],point[0],holder) = ct.TransformPoint(latLonPairs[i,1],latLonPairs[i,0])
+        # Translate the x and y coordinates into pixel values
+        x = (point[1]-gt[0])/gt[1]
+        y = (point[0]-gt[3])/gt[5]
+        # Add the point to our return array
+        #  ------------x----------
+        #  |
+        #  y
+        #  |
+        #  |
+        # this is the direction cord in gdal system
+        pixelPairs[i,1]=y
+        pixelPairs[i,0]=x
+        #pixelPairs.append([int(x),int(y)])
+    ds=None
+    return pixelPairs
